@@ -1,29 +1,38 @@
-//C:\Users\user\Desktop\0703flutter_v2\lib\app\router.dart
+// C:\Users\user\Desktop\0703flutter_v2\lib\app\router.dart
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../features/auth/view/login_screen.dart';
-import '../features/auth/view/register_screen.dart';
-import '../features/home/view/main_scaffold.dart'; // MainScaffold 임포트
-import '../features/home/view/home_screen.dart'; // HomeScreen 임포트 (MainScaffold의 자식으로 사용)
-import '../features/chatbot/view/chatbot_screen.dart';
-import '../features/mypage/view/mypage_screen.dart';
-import '../features/diagnosis/view/upload_screen.dart';
-import '../features/diagnosis/view/result_screen.dart';
-import '../features/history/view/history_screen.dart';
-import '../features/diagnosis/view/realtime_prediction_screen.dart';
-import '../features/mypage/view/edit_profile_screen.dart';
-import '../features/auth/view/find-Account_screen.dart'; // FindAccountScreen 임포트 추가
+import 'package:t0703/features/auth/view/login_screen.dart'; // ⭐ 경로 수정
+import 'package:t0703/features/auth/view/register_screen.dart'; // ⭐ 경로 수정
+import 'package:t0703/features/auth/view/find-Account_screen.dart'; // ⭐ 경로 수정
+
+// ⭐ 의사 포털 화면 임포트
+import 'package:t0703/features/doctor_portal/view/doctor_dashboard_screen.dart';
+
+// ⚠️ 아래 임포트들은 환자 관련 화면이므로 의사 웹 앱에서는 사용되지 않습니다.
+// import '../features/home/view/main_scaffold.dart';
+// import '../features/home/view/home_screen.dart';
+// import '../features/chatbot/view/chatbot_screen.dart';
+// import '../features/mypage/view/mypage_screen.dart';
+// import '../features/diagnosis/view/upload_screen.dart';
+// import '../features/diagnosis/view/result_screen.dart';
+// import '../features/history/view/history_screen.dart';
+// import '../features/diagnosis/view/realtime_prediction_screen.dart';
+// import '../features/mypage/view/edit_profile_screen.dart';
+
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
-  static final _shellNavigatorKey = GlobalKey<NavigatorState>(); // ShellRoute를 위한 별도의 NavigatorKey
+  // ShellRoute를 사용하지 않으므로 _shellNavigatorKey는 필요 없습니다.
+  // static final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
   static final router = GoRouter(
     navigatorKey: _rootNavigatorKey, // 최상위 NavigatorKey
     initialLocation: '/login', // 앱 시작 시 초기 경로
+
     routes: [
-      // 로그인 및 회원가입 화면 (하단 탭 바 없음)
+      // 로그인, 회원가입, 아이디/비밀번호 찾기 화면 (하단 탭 바 없음)
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -32,62 +41,43 @@ class AppRouter {
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
       ),
-      // ✅ 추가된 부분: FindAccountScreen에 대한 GoRoute 정의
       GoRoute(
-        path: '/find-account', // 이 경로로 FindAccountScreen에 접근할 수 있습니다.
+        path: '/find-account',
         builder: (context, state) => const FindAccountScreen(),
       ),
 
-      // ✅ ShellRoute: 하단 탭 바가 있는 화면들을 감싸는 역할
-      ShellRoute(
-        navigatorKey: _shellNavigatorKey, // ShellRoute는 자체 NavigatorKey를 가집니다.
-        builder: (context, state, child) {
-          // MainScaffold가 하단 탭 바를 제공하고, child는 현재 선택된 탭의 화면입니다.
-          // ✅ state.fullPath 대신 state.uri.toString() 사용
-          return MainScaffold(child: child, currentLocation: state.uri.toString());
-        },
-        routes: [
-          // MainScaffold 내부에 표시될 탭 화면들
-          GoRoute(
-            path: '/home', // 홈 탭
-            builder: (context, state) => const HomeScreen(),
-          ),
-          GoRoute(
-            path: '/chatbot', // 챗봇 탭
-            builder: (context, state) => const ChatbotScreen(),
-          ),
-          GoRoute(
-            path: '/mypage', // 마이페이지 탭
-            builder: (context, state) => const MyPageScreen(),
-            routes: [
-              // 개인정보 수정 화면은 마이페이지 탭의 하위 라우트로 중첩
-              GoRoute(
-                path: 'edit', // '/mypage/edit' 경로가 됨
-                builder: (context, state) => const EditProfileScreen(),
-              ),
-            ],
-          ),
-          GoRoute(
-            path: '/history', // 진단 기록 화면 (탭에서 접근 가능)
-            builder: (context, state) => const HistoryScreen(),
-          ),
-          GoRoute(
-            path: '/upload', // 사진 진단 업로드 화면 (탭에서 접근 가능)
-            builder: (context, state) => const UploadScreen(),
-          ),
-          GoRoute(
-            path: '/result', // 진단 결과 화면 (탭에서 접근 가능)
-            builder: (context, state) => const ResultScreen(),
-          ),
-        ],
+      // ⭐ 의사 대시보드 화면 (로그인 성공 시 이동할 메인 화면)
+      // 이 화면 내부에 '비대면 진료 신청'과 '진료 캘린더' 탭이 포함됩니다.
+      GoRoute(
+        path: '/doctor_dashboard',
+        builder: (context, state) => const DoctorDashboardScreen(),
       ),
 
-      // ShellRoute 외부에 있는 화면 (하단 탭 바 없음)
-      // 예: 실시간 예측 화면 (전체 화면으로 표시)
-      GoRoute(
-        path: '/diagnosis/realtime',
-        builder: (context, state) => const RealtimePredictionScreen(),
-      ),
+      // ⚠️ 아래는 환자 관련 라우트이므로 의사 웹 앱에서는 제거됩니다.
+      // ShellRoute(
+      //   navigatorKey: _shellNavigatorKey,
+      //   builder: (context, state, child) {
+      //     return MainScaffold(child: child, currentLocation: state.uri.toString());
+      //   },
+      //   routes: [
+      //     GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+      //     GoRoute(path: '/chatbot', builder: (context, state) => const ChatbotScreen()),
+      //     GoRoute(
+      //       path: '/mypage',
+      //       builder: (context, state) => const MyPageScreen(),
+      //       routes: [
+      //         GoRoute(path: 'edit', builder: (context, state) => const EditProfileScreen()),
+      //       ],
+      //     ),
+      //     GoRoute(path: '/history', builder: (context, state) => const HistoryScreen()),
+      //     GoRoute(path: '/upload', builder: (context, state) => const UploadScreen()),
+      //     GoRoute(path: '/result', builder: (context, state) => const ResultScreen()),
+      //   ],
+      // ),
+      // GoRoute(
+      //   path: '/diagnosis/realtime',
+      //   builder: (context, state) => const RealtimePredictionScreen(),
+      // ),
     ],
   );
 }

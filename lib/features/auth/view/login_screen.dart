@@ -1,10 +1,12 @@
-// C:\Users\sptzk\Desktop\t0703\lib\features\auth\view\login_screen.dart
+// C:\Users\user\Desktop\t0703\lib\features\auth\view\login_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../viewmodel/auth_viewmodel.dart';
-import '../../mypage/viewmodel/userinfo_viewmodel.dart';
+import 'package:t0703/features/auth/viewmodel/auth_viewmodel.dart'; // ⭐ 경로 수정
+import 'package:t0703/features/mypage/viewmodel/userinfo_viewmodel.dart'; // ⭐ 경로 수정
+import 'package:t0703/features/doctor_portal/view/doctor_dashboard_screen.dart'; // ⭐ 경로 수정
+import 'package:t0703/features/home/view/home_screen.dart'; // 환자 홈 화면 임포트 (go_router 경로에 따라 필요)
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,12 +17,12 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _userIdController = TextEditingController();
+  final _emailController = TextEditingController(); // userId 대신 email로 이름 변경 (더 명확)
   final _passwordController = TextEditingController();
 
   @override
   void dispose() {
-    _userIdController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -44,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final userId = _userIdController.text.trim();
+    final email = _emailController.text.trim(); // userId 대신 email 사용
     final password = _passwordController.text.trim();
 
     final authViewModel = context.read<AuthViewModel>();
@@ -59,20 +61,29 @@ class _LoginScreenState extends State<LoginScreen> {
         },
       );
 
-      final user = await authViewModel.loginUser(userId, password);
+      final user = await authViewModel.loginUser(email, password); // email 전달
 
-      Navigator.of(context).pop();
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
 
       if (user != null) {
         userInfoViewModel.loadUser(user);
         _showSnack('로그인 성공!');
-        context.go('/home');
+
+        if (user.isDoctor) {
+          context.go('/doctor_dashboard'); // 의사 대시보드 경로 (go_router 설정 필요)
+        } else {
+          context.go('/home'); // 환자 홈 화면 경로
+        }
+      } else {
+        _showSnack(authViewModel.errorMessage ?? '로그인 실패: 알 수 없는 오류');
       }
     } catch (e) {
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
-      _showSnack(e.toString());
+      _showSnack('로그인 중 예기치 않은 오류가 발생했습니다: ${e.toString()}');
     }
   }
 
@@ -114,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 40),
                   TextFormField(
-                    controller: _userIdController,
+                    controller: _emailController, // userId 대신 emailController 사용
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(color: Colors.black87),
                     decoration: InputDecoration(
@@ -137,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return '아이디를 입력해주세요';
+                        return '이메일을 입력해주세요';
                       }
                       return null;
                     },
@@ -214,7 +225,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  // 아이디/비밀번호 찾기 하나의 버튼
                   TextButton(
                     onPressed: () => context.go('/find-account'),
                     child: const Text(
