@@ -1,101 +1,198 @@
 // lib/features/auth/viewmodel/auth_viewmodel.dart
 
 import 'package:flutter/material.dart';
-import 'package:t0703/features/auth/model/user.dart'; // ⭐ 경로 수정
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:t0703/features/auth/model/user.dart';
 
-class AuthViewModel extends ChangeNotifier {
-  final String baseUrl; // ⭐ baseUrl 추가
-  User? _currentUser;
+class AuthViewModel with ChangeNotifier {
+  final String _baseUrl;
   String? _errorMessage;
-  bool _isLoading = false;
+  User? _currentUser;
 
-  AuthViewModel({required this.baseUrl}); // ⭐ 생성자 추가
+  AuthViewModel({required String baseUrl}) : _baseUrl = baseUrl;
 
-  User? get currentUser => _currentUser;
   String? get errorMessage => _errorMessage;
-  bool get isLoading => _isLoading;
+  User? get currentUser => _currentUser;
 
-  Future<User?> loginUser(String email, String password) async { // userId 대신 email로 변경
-    _isLoading = true;
+  Future<bool?> checkEmailDuplicate(String email) async {
     _errorMessage = null;
-    notifyListeners();
-
     try {
-      // ⭐ 실제 백엔드 로그인 API 호출 로직 (baseUrl 사용)
-      // 예: final response = await http.post(Uri.parse('$baseUrl/login'), body: {'email': email, 'password': password});
-
-      await Future.delayed(const Duration(seconds: 1)); // 네트워크 지연 시뮬레이션
-
-      if (email == 'doctor@example.com' && password == 'doctorpass') {
-        _currentUser = User(
-          uid: 'doc_123',
-          email: email,
-          name: '김닥터',
-          isDoctor: true,
-          gender: '남', // 가상 데이터 추가
-          birth: '1980-01-01',
-          phone: '010-1234-5678',
-        );
-        _isLoading = false;
-        notifyListeners();
-        return _currentUser;
-      } else if (email == 'patient@example.com' && password == 'patientpass') {
-        _currentUser = User(
-          uid: 'pat_456',
-          email: email,
-          name: '이환자',
-          isDoctor: false,
-          gender: '여', // 가상 데이터 추가
-          birth: '1995-05-15',
-          phone: '010-9876-5432',
-        );
-        _isLoading = false;
-        notifyListeners();
-        return _currentUser;
+      final res = await http.get(Uri.parse('$_baseUrl/auth/exists?email=$email'));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['exists'] == true;
       } else {
-        _errorMessage = '아이디 또는 비밀번호를 확인해주세요.';
-        _isLoading = false;
+        String message = '알 수 없는 오류 (Status: ${res.statusCode})';
+        try {
+          final decodedBody = json.decode(res.body);
+          if (decodedBody is Map && decodedBody.containsKey('message')) {
+            message = decodedBody['message'] as String;
+          } else if (decodedBody is String && decodedBody.isNotEmpty) {
+            message = decodedBody; // If it's a plain string error
+          }
+        } catch (e) {
+          // Body was not valid JSON or unexpected structure, use default message
+        }
+        _errorMessage = '이메일 중복검사 서버 응답 오류: $message';
+        if (kDebugMode) {
+          print(_errorMessage);
+        }
         notifyListeners();
         return null;
       }
     } catch (e) {
-      _errorMessage = '로그인 중 오류가 발생했습니다: $e';
-      _isLoading = false;
+      _errorMessage = '이메일 중복검사 중 네트워크 오류: ${e.toString()}';
+      if (kDebugMode) {
+        print(_errorMessage);
+      }
       notifyListeners();
       return null;
+    }
+  }
+
+  Future<bool> registerUser(
+    String email,
+    String password, {
+    required String name,
+    required String phoneNumber,
+    String? clinicName,
+    String? clinicAddress,
+    bool isDoctor = false,
+  }) async {
+    _errorMessage = null;
+    try {
+      final res = await http.post(
+        Uri.parse('$_baseUrl/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          'name': name,
+          'phoneNumber': phoneNumber,
+          'clinicName': clinicName,
+          'clinicAddress': clinicAddress,
+          'isDoctor': isDoctor,
+        }),
+      );
+
+      if (res.statusCode == 201) {
+        notifyListeners();
+        return true;
+      } else {
+        String message = '알 수 없는 오류 (Status: ${res.statusCode})';
+        try {
+          final decodedBody = json.decode(res.body);
+          if (decodedBody is Map && decodedBody.containsKey('message')) {
+            message = decodedBody['message'] as String;
+          } else if (decodedBody is String && decodedBody.isNotEmpty) {
+            message = decodedBody;
+          }
+        } catch (e) {
+          // Body was not valid JSON or unexpected structure
+        }
+        _errorMessage = '회원가입 실패: $message';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = '네트워크 오류: ${e.toString()}';
+      if (kDebugMode) {
+        print('회원가입 중 네트워크 오류: $e');
+      }
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<User?> loginUser(String email, String password) async {
+    _errorMessage = null;
+    try {
+      final res = await http.post(
+        Uri.parse('$_baseUrl/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
+
+      if (res.statusCode == 200) {
+        final dynamic decodedBody = jsonDecode(res.body); // Use dynamic to handle various types
+        // Ensure 'user' key exists and is a Map
+        if (decodedBody is Map && decodedBody.containsKey('user') && decodedBody['user'] is Map) {
+          _currentUser = User.fromJson(decodedBody['user'] as Map<String, dynamic>);
+          notifyListeners();
+          return _currentUser;
+        } else {
+          _errorMessage = '로그인 실패: 서버 응답 형식이 올바르지 않습니다.';
+          notifyListeners();
+          return null;
+        }
+      } else {
+        String message = '알 수 없는 오류 (Status: ${res.statusCode})';
+        try {
+          final decodedBody = json.decode(res.body);
+          if (decodedBody is Map && decodedBody.containsKey('message')) {
+            message = decodedBody['message'] as String;
+          } else if (decodedBody is String && decodedBody.isNotEmpty) {
+            message = decodedBody;
+          }
+        } catch (e) {
+          // Body was not valid JSON or unexpected structure
+        }
+        _errorMessage = '로그인 실패: $message';
+        notifyListeners();
+        return null;
+      }
+    } catch (e) {
+      _errorMessage = '네트워크 오류: ${e.toString()}';
+      if (kDebugMode) {
+        print('로그인 중 네트워크 오류: $e');
+      }
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<String?> deleteUser(String email, String password) async {
+    _errorMessage = null;
+    try {
+      final res = await http.delete(
+        Uri.parse('$_baseUrl/auth/delete_account'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
+
+      if (res.statusCode == 200) {
+        notifyListeners();
+        return null;
+      } else {
+        String message = '알 수 없는 오류 (Status: ${res.statusCode})';
+        try {
+          final decodedBody = json.decode(res.body);
+          if (decodedBody is Map && decodedBody.containsKey('message')) {
+            message = decodedBody['message'] as String;
+          } else if (decodedBody is String && decodedBody.isNotEmpty) {
+            message = decodedBody;
+          }
+        } catch (e) {
+          // Body was not valid JSON or unexpected structure
+        }
+        _errorMessage = message;
+        notifyListeners();
+        return _errorMessage;
+      }
+    } catch (e) {
+      _errorMessage = '네트워크 오류: ${e.toString()}';
+      if (kDebugMode) {
+        print('회원 탈퇴 중 네트워크 오류: $e');
+      }
+      notifyListeners();
+      return _errorMessage;
     }
   }
 
   void logout() {
     _currentUser = null;
     notifyListeners();
-    // TODO: 실제 로그아웃 API 호출 및 세션 정리
-  }
-
-  // ⭐ register_screen.dart 에서 사용될 더미 메서드 추가
-  Future<bool> checkUserIdDuplicate(String email) async {
-    await Future.delayed(const Duration(milliseconds: 500)); // 시뮬레이션
-    return email == 'existing@example.com'; // 이미 존재하는 아이디라고 가정
-  }
-
-  Future<String?> registerUser(Map<String, dynamic> userData) async {
-    await Future.delayed(const Duration(seconds: 1)); // 시뮬레이션
-    // 실제로는 userData를 백엔드로 전송하여 회원가입 처리
-    if (userData['email'] == 'fail@example.com') {
-      return '회원가입 실패: 서버 오류';
-    }
-    return null; // 성공 시 null 반환
-  }
-
-  // ⭐ mypage_screen.dart 에서 사용될 더미 메서드 추가
-  Future<String?> deleteUser(String email, String password) async {
-    await Future.delayed(const Duration(seconds: 1)); // 시뮬레이션
-    // 실제로는 백엔드에서 사용자 삭제 처리
-    if (email == 'error@example.com') {
-      return '사용자 삭제 실패: 서버 오류';
-    }
-    _currentUser = null; // 삭제 성공 시 현재 사용자 정보 초기화
-    notifyListeners();
-    return null; // 성공 시 null 반환
   }
 }

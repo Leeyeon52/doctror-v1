@@ -75,7 +75,8 @@ class _FindAccountScreenState extends State<FindAccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appAppbar: AppBar(
+      // ✅ 'appAppbar'를 'appBar'로 수정했습니다.
+      appBar: AppBar(
         title: const Text(
           '아이디/비밀번호 찾기',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),

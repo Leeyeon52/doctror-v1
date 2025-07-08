@@ -1,47 +1,45 @@
 // lib/features/auth/model/user.dart
 
 class User {
-  final String uid;
-  final String email; // 로그인 아이디로 사용되는 이메일
+  final int id;
+  final String email;
   final String name;
+  final String phoneNumber;
   final bool isDoctor;
-  final String? gender; // 추가: 성별
-  final String? birth;  // 추가: 생년월일 (예: "YYYY-MM-DD")
-  final String? phone;  // 추가: 전화번호
+  final String? clinicName;
+  final String? clinicAddress;
 
   User({
-    required this.uid,
+    required this.id,
     required this.email,
     required this.name,
-    this.isDoctor = false,
-    this.gender,
-    this.birth,
-    this.phone,
+    required this.phoneNumber,
+    required this.isDoctor,
+    this.clinicName,
+    this.clinicAddress,
   });
 
-  // JSON 또는 Map에서 User 객체를 생성하는 팩토리 생성자
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      uid: json['uid'] as String,
+      id: json['id'] as int,
       email: json['email'] as String,
       name: json['name'] as String,
-      isDoctor: json['isDoctor'] as bool? ?? false,
-      gender: json['gender'] as String?,
-      birth: json['birth'] as String?,
-      phone: json['phone'] as String?,
+      phoneNumber: json['phoneNumber'] as String,
+      isDoctor: json['isDoctor'] as bool,
+      clinicName: json['clinicName'] as String?,
+      clinicAddress: json['clinicAddress'] as String?,
     );
   }
 
-  // User 객체를 JSON 또는 Map으로 변환하는 메서드
   Map<String, dynamic> toJson() {
     return {
-      'uid': uid,
+      'id': id,
       'email': email,
       'name': name,
+      'phoneNumber': phoneNumber,
       'isDoctor': isDoctor,
-      'gender': gender,
-      'birth': birth,
-      'phone': phone,
+      'clinicName': clinicName,
+      'clinicAddress': clinicAddress,
     };
   }
 }

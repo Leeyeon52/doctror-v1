@@ -1,87 +1,211 @@
-// lib/features/doctor_portal/viewmodel/telemedicine_request_list_viewmodel.dart
+// lib/features/doctor_portal/view/telemedicine_request_list_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:t0703/features/doctor_portal/model/patient_request.dart'; // ⭐ 경로 수정
-// import 'package:t0703/core/api_service.dart'; // API 서비스 임포트 (가정)
+import 'package:go_router/go_router.dart';
+import 'package:t0703/features/doctor_portal/view/telemedicine_detail_screen.dart';
 
-class TelemedicineRequestListViewModel extends ChangeNotifier {
-  final String baseUrl; // ⭐ baseUrl 추가
-  List<PatientRequest> _allRequests = [];
-  String _selectedStatusFilter = '전체';
-  String _searchKeyword = '';
-  bool _isLoading = false;
-  String? _errorMessage;
+class TelemedicineRequestListScreen extends StatelessWidget {
+  const TelemedicineRequestListScreen({super.key});
 
-  TelemedicineRequestListViewModel({required this.baseUrl}); // ⭐ 생성자 추가
-
-  List<PatientRequest> get filteredRequests {
-    return _allRequests.where((request) {
-      final statusMatch = _selectedStatusFilter == '전체' || request.status == _selectedStatusFilter;
-      final searchMatch = request.patientName.toLowerCase().contains(_searchKeyword.toLowerCase()) ||
-          (request.aiSummary?.toLowerCase().contains(_searchKeyword.toLowerCase()) ?? false) ||
-          request.symptom.toLowerCase().contains(_searchKeyword.toLowerCase());
-      return statusMatch && searchMatch;
-    }).toList();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('진료 현황', style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
+        actions: const [
+          // 앱 바의 알람 아이콘은 이미지에 없으므로 제거된 상태 유지
+        ],
+      ),
+      body: Row( // ✅ Row 위젯을 사용하여 좌우 분할
+        children: [
+          // 좌측 진료 현황 목록 (Expanded로 남은 공간 차지)
+          Expanded(
+            flex: 3, // 좌측이 더 넓게 (예: 3:1 비율)
+            child: ListView(
+              padding: const EdgeInsets.all(16.0),
+              children: [
+                _buildStatusSection(context, '진료중', Colors.orange, [
+                  _buildRequestCard(context, '김철수', 'Wed, 18 Jul | 치아 지각 과민 (재진환자)', '진료중', 1),
+                  _buildRequestCard(context, '이영희', 'Sun, 15 Jul | 충치 의심, 잇몸 통증 (초진환자)', '진료중', 2),
+                ]),
+                _buildStatusSection(context, '대기중', Colors.blue, [
+                  _buildRequestCard(context, '박민수', 'Mon, 09 Jul | 사랑니 통증 (초진환자)', '대기중', 3),
+                ]),
+                _buildStatusSection(context, '완료됨', Colors.green, [
+                  _buildRequestCard(context, '정미경', 'Thu, 12 Jul | 치아 시린 증상 (재진환자)', '완료됨', 4),
+                  _buildRequestCard(context, '최지훈', 'Fri, 06 Jul | 임플란트 상담 요청 (초진환자)', '완료됨', 5),
+                ]),
+              ],
+            ),
+          ),
+          // 우측 알람 및 추천 섹션
+          Expanded(
+            flex: 1, // 우측이 좁게 (예: 3:1 비율)
+            child: Container(
+              color: Colors.grey[100], // 배경색으로 구분
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 알람 섹션 헤더
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '알람',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none, color: Colors.blueAccent),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('알람 목록 보기 (미구현)')),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded( // 알람 목록이 스크롤되도록 Expanded 사용
+                    child: ListView(
+                      children: [
+                        _buildAlarmItem(context, '새로운 진료 신청: 김민수 (10:30)'),
+                        _buildAlarmItem(context, '예약 변경: 이수진 (내일 14:00)'),
+                        _buildAlarmItem(context, '시스템 업데이트 알림'),
+                        // 더 많은 알람 항목 추가 가능
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // 추천 섹션 헤더
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '추천',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.thumb_up_alt_outlined, color: Colors.blueAccent),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('추천 정보 더보기 (미구현)')),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded( // 추천 목록이 스크롤되도록 Expanded 사용
+                    child: ListView(
+                      children: [
+                        _buildRecommendationItem(context, 'AI 진단 정확도 향상 팁'),
+                        _buildRecommendationItem(context, '최신 치과 장비 소개'),
+                        _buildRecommendationItem(context, '환자 만족도 높이는 방법'),
+                        // 더 많은 추천 항목 추가 가능
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  String get selectedStatusFilter => _selectedStatusFilter;
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
+  Widget _buildStatusSection(BuildContext context, String title, Color color, List<Widget> cards) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: Text(
+            '$title (${cards.length})',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ),
+        ...cards,
+        const SizedBox(height: 20),
+      ],
+    );
+  }
 
-  // 실제로는 API 서비스에서 데이터를 가져옵니다.
-  Future<void> fetchRequests() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      // ⭐ API 서비스 호출 예시:
-      // final response = await http.get(Uri.parse('$baseUrl/patient_requests'));
-      // _allRequests = (json.decode(response.body) as List).map((data) => PatientRequest.fromJson(data)).toList();
-
-      // 가상 데이터 로드
-      await Future.delayed(const Duration(seconds: 1));
-      _allRequests = [
-        PatientRequest(
-          id: 'req_001', patientName: '김민준', status: '신청됨',
-          imageUrl: 'https://placehold.co/100x100/FF5733/FFFFFF?text=Oral1',
-          aiSummary: '우측 어금니 충치 의심', assignedDoctor: '미지정',
-          patientId: 'pat_001', symptom: '오른쪽 위 어금니 시림', likertScale: '매우 불편함', patientComment: '차가운 물 마실 때 특히 시려요.',
-        ),
-        PatientRequest(
-          id: 'req_002', patientName: '이지은', status: '대기 중',
-          imageUrl: 'https://placehold.co/100x100/33FF57/FFFFFF?text=Oral2',
-          aiSummary: '잇몸 염증 가능성', assignedDoctor: '박닥터',
-          patientId: 'pat_002', symptom: '잇몸이 붓고 피가 나요', likertScale: '약간 불편함', patientComment: '양치할 때 피가 자주 나요.',
-        ),
-        PatientRequest(
-          id: 'req_003', patientName: '최현우', status: '답변 완료',
-          imageUrl: 'https://placehold.co/100x100/3357FF/FFFFFF?text=Oral3',
-          aiSummary: '사랑니 발치 필요', assignedDoctor: '김닥터',
-          patientId: 'pat_003', symptom: '사랑니 주변 통증', likertScale: '보통', patientComment: '음식물이 끼고 아파요.',
-        ),
-        PatientRequest(
-          id: 'req_004', patientName: '박서연', status: '신청됨',
-          imageUrl: '', // 이미지 없는 경우
-          aiSummary: '치아 깨짐', assignedDoctor: '미지정',
-          patientId: 'pat_004', symptom: '앞니가 깨졌어요', likertScale: '매우 불편함', patientComment: '넘어져서 부딪혔어요.',
-        ),
-      ];
-    } catch (e) {
-      _errorMessage = e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+  Widget _buildRequestCard(BuildContext context, String patientName, String details, String status, int consultationId) {
+    Color statusColor;
+    switch (status) {
+      case '진료중':
+        statusColor = Colors.orange;
+        break;
+      case '대기중':
+        statusColor = Colors.blue;
+        break;
+      case '완료됨':
+        statusColor = Colors.green;
+        break;
+      default:
+        statusColor = Colors.grey;
     }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        title: Text(
+          patientName,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        subtitle: Text(details),
+        trailing: Chip(
+          label: Text(status, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          backgroundColor: statusColor,
+        ),
+        onTap: () {
+          context.go('/telemedicine_detail/$consultationId');
+        },
+      ),
+    );
   }
 
-  void setSelectedStatusFilter(String status) {
-    _selectedStatusFilter = status;
-    notifyListeners();
+  // 알람 항목 위젯
+  Widget _buildAlarmItem(BuildContext context, String message) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Text(
+          message,
+          style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+        ),
+      ),
+    );
   }
 
-  void setSearchKeyword(String keyword) {
-    _searchKeyword = keyword;
-    notifyListeners();
+  // 추천 항목 위젯
+  Widget _buildRecommendationItem(BuildContext context, String title) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Text(
+          title,
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueGrey[700]),
+        ),
+      ),
+    );
   }
 }

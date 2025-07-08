@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:t0703/features/auth/viewmodel/auth_viewmodel.dart'; // ⭐ 경로 수정
+import 'package:t0703/features/auth/viewmodel/auth_viewmodel.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,20 +16,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  final _nameController = TextEditingController();
-  final _birthController = TextEditingController();
-  final _phoneController = TextEditingController();
-  String? _selectedGender;
+  final _nameController = TextEditingController(); // ✅ 이름 컨트롤러 추가
+  final _phoneController = TextEditingController(); // ✅ 핸드폰 번호 컨트롤러 추가
+  final _clinicNameController = TextEditingController(); // ✅ 치과 이름 컨트롤러 추가
+  final _clinicAddressController = TextEditingController(); // ✅ 치과 주소 컨트롤러 추가
+  bool _isDoctor = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    _nameController.dispose();
-    _birthController.dispose();
-    _phoneController.dispose();
+    _nameController.dispose(); // ✅ 컨트롤러 dispose
+    _phoneController.dispose(); // ✅ 컨트롤러 dispose
+    _clinicNameController.dispose(); // ✅ 컨트롤러 dispose
+    _clinicAddressController.dispose(); // ✅ 컨트롤러 dispose
     super.dispose();
   }
 
@@ -52,10 +52,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    if (_passwordController.text != _confirmPasswordController.text) {
-      _showSnack('비밀번호가 일치하지 않습니다.');
-      return;
-    }
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final name = _nameController.text.trim(); // ✅ 이름 값 가져오기
+    final phoneNumber = _phoneController.text.trim(); // ✅ 핸드폰 번호 값 가져오기
+    final clinicName = _clinicNameController.text.trim(); // ✅ 치과 이름 값 가져오기
+    final clinicAddress = _clinicAddressController.text.trim(); // ✅ 치과 주소 값 가져오기
 
     final authViewModel = context.read<AuthViewModel>();
 
@@ -68,32 +70,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
         },
       );
 
-      // 회원가입 데이터 준비 (isDoctor는 기본 false로 가정)
-      final userData = {
-        'email': _emailController.text.trim(),
-        'password': _passwordController.text.trim(),
-        'name': _nameController.text.trim(),
-        'gender': _selectedGender,
-        'birth': _birthController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'isDoctor': false, // 기본적으로 환자로 회원가입
-      };
-
-      final error = await authViewModel.registerUser(userData); // ⭐ ViewModel 메서드 호출
+      // ✅ registerUser 메서드에 추가 필드 전달
+      final success = await authViewModel.registerUser(
+        email,
+        password,
+        name: name,
+        phoneNumber: phoneNumber,
+        clinicName: clinicName,
+        clinicAddress: clinicAddress,
+        isDoctor: _isDoctor,
+      );
 
       if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
       }
 
-      if (error == null) {
-        _showSnack('회원가입 성공!');
+      if (success) {
+        _showSnack('회원가입 성공! 로그인 해주세요.');
         context.go('/login'); // 회원가입 성공 후 로그인 화면으로 이동
       } else {
-        _showSnack('회원가입 실패: $error');
+        _showSnack(authViewModel.errorMessage ?? '회원가입 실패: 알 수 없는 오류');
       }
     } catch (e) {
       if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
       }
       _showSnack('회원가입 중 예기치 않은 오류가 발생했습니다: ${e.toString()}');
     }
@@ -106,6 +106,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         title: const Text(
           '회원가입',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            context.pop(); // 이전 화면 (로그인 화면)으로 돌아가기
+          },
         ),
         centerTitle: true,
         backgroundColor: Colors.white,
@@ -122,6 +128,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Icon(
+                    Icons.person_add_alt_1_rounded,
+                    size: 80,
+                    color: Colors.blue.shade700,
+                  ),
+                  const SizedBox(height: 20),
                   Text(
                     '새 계정 생성',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -129,18 +141,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                   ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    '서비스 이용을 위해 회원 정보를 입력해주세요.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.black54),
+                  ),
                   const SizedBox(height: 40),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(color: Colors.black87),
                     decoration: InputDecoration(
-                      labelText: '이메일 (아이디)',
+                      labelText: '이메일',
+                      labelStyle: TextStyle(color: Colors.grey[600]),
+                      hintText: 'example@example.com',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
                       prefixIcon: Icon(Icons.email_outlined, color: Colors.grey[600]),
                       filled: true,
                       fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.blueAccent, width: 2), borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                      ),
                       errorStyle: const TextStyle(color: Colors.redAccent),
                     ),
                     validator: (value) {
@@ -150,18 +177,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                         return '유효한 이메일 형식을 입력해주세요.';
                       }
-                      // 아이디 중복 확인 (비동기 유효성 검사)
-                      return null; // 초기에는 null 반환, 나중에 비동기 검사 결과 반영
+                      return null;
                     },
-                    onEditingComplete: () async {
-                      if (_emailController.text.isNotEmpty) {
-                        final authViewModel = context.read<AuthViewModel>();
-                        final exists = await authViewModel.checkUserIdDuplicate(_emailController.text.trim()); // ⭐ ViewModel 메서드 호출
-                        if (exists) {
-                          _showSnack('이미 사용 중인 이메일입니다.');
-                          _formKey.currentState?.validate(); // 유효성 검사 다시 실행하여 오류 메시지 표시
-                        }
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _nameController, // ✅ 이름 필드 추가
+                    keyboardType: TextInputType.text,
+                    style: const TextStyle(color: Colors.black87),
+                    decoration: InputDecoration(
+                      labelText: '이름',
+                      labelStyle: TextStyle(color: Colors.grey[600]),
+                      hintText: '이름을 입력해주세요',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      prefixIcon: Icon(Icons.person_outline, color: Colors.grey[600]),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                      ),
+                      errorStyle: const TextStyle(color: Colors.redAccent),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return '이름을 입력해주세요.';
                       }
+                      return null;
                     },
                   ),
                   const SizedBox(height: 20),
@@ -171,11 +217,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     style: const TextStyle(color: Colors.black87),
                     decoration: InputDecoration(
                       labelText: '비밀번호',
+                      labelStyle: TextStyle(color: Colors.grey[600]),
+                      hintText: '비밀번호를 입력해주세요 (최소 6자)',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
                       prefixIcon: Icon(Icons.lock_outline, color: Colors.grey[600]),
                       filled: true,
                       fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.blueAccent, width: 2), borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                      ),
                       errorStyle: const TextStyle(color: Colors.redAccent),
                     ),
                     validator: (value) {
@@ -183,67 +238,128 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return '비밀번호를 입력해주세요.';
                       }
                       if (value.length < 6) {
-                        return '비밀번호는 6자 이상이어야 합니다.';
+                        return '비밀번호는 최소 6자 이상이어야 합니다.';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 20),
                   TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: true,
+                    controller: _phoneController, // ✅ 핸드폰 번호 필드 추가
+                    keyboardType: TextInputType.phone,
                     style: const TextStyle(color: Colors.black87),
                     decoration: InputDecoration(
-                      labelText: '비밀번호 확인',
-                      prefixIcon: Icon(Icons.lock_outline, color: Colors.grey[600]),
+                      labelText: '핸드폰 번호',
+                      labelStyle: TextStyle(color: Colors.grey[600]),
+                      hintText: '010-1234-5678',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      prefixIcon: Icon(Icons.phone_outlined, color: Colors.grey[600]),
                       filled: true,
                       fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.blueAccent, width: 2), borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                      ),
                       errorStyle: const TextStyle(color: Colors.redAccent),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return '비밀번호를 다시 입력해주세요.';
+                        return '핸드폰 번호를 입력해주세요.';
                       }
-                      if (value != _passwordController.text) {
-                        return '비밀번호가 일치하지 않습니다.';
+                      // 간단한 숫자 및 하이픈 유효성 검사
+                      if (!RegExp(r'^\d{2,3}-\d{3,4}-\d{4}$').hasMatch(value)) {
+                        return '유효한 핸드폰 번호 형식을 입력해주세요 (예: 010-1234-5678).';
                       }
                       return null;
                     },
+                  ),
+                  const SizedBox(height: 20),
+                  // 의사 계정일 경우에만 치과 정보 필드 표시
+                  if (_isDoctor) ...[
+                    TextFormField(
+                      controller: _clinicNameController, // ✅ 치과 이름 필드 추가
+                      keyboardType: TextInputType.text,
+                      style: const TextStyle(color: Colors.black87),
+                      decoration: InputDecoration(
+                        labelText: '치과 이름',
+                        labelStyle: TextStyle(color: Colors.grey[600]),
+                        hintText: 'OO치과',
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        prefixIcon: Icon(Icons.local_hospital_outlined, color: Colors.grey[600]),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                        ),
+                        errorStyle: const TextStyle(color: Colors.redAccent),
+                      ),
+                      validator: (value) {
+                        if (_isDoctor && (value == null || value.isEmpty)) {
+                          return '치과 이름을 입력해주세요.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _clinicAddressController, // ✅ 치과 주소 필드 추가
+                      keyboardType: TextInputType.streetAddress,
+                      style: const TextStyle(color: Colors.black87),
+                      decoration: InputDecoration(
+                        labelText: '치과 주소',
+                        labelStyle: TextStyle(color: Colors.grey[600]),
+                        hintText: '서울특별시 강남구 테헤란로 123',
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        prefixIcon: Icon(Icons.location_on_outlined, color: Colors.grey[600]),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                        ),
+                        errorStyle: const TextStyle(color: Colors.redAccent),
+                      ),
+                      validator: (value) {
+                        if (_isDoctor && (value == null || value.isEmpty)) {
+                          return '치과 주소를 입력해주세요.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Checkbox(
+                        value: _isDoctor,
+                        onChanged: (bool? newValue) {
+                          setState(() {
+                            _isDoctor = newValue ?? false;
+                          });
+                        },
+                        activeColor: Colors.blueAccent,
+                      ),
+                      const Text(
+                        '의사입니다 (의료인 계정으로 등록)',
+                        style: TextStyle(color: Colors.black87),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 30),
-                  _buildTextFormField(
-                    controller: _nameController,
-                    labelText: '이름',
-                    icon: Icons.person_outline,
-                    validator: (value) => value!.isEmpty ? '이름을 입력해주세요.' : null,
-                  ),
-                  const SizedBox(height: 20),
-                  _buildGenderSelection(),
-                  const SizedBox(height: 20),
-                  _buildTextFormField(
-                    controller: _birthController,
-                    labelText: '생년월일 (YYYY-MM-DD)',
-                    icon: Icons.calendar_today_outlined,
-                    keyboardType: TextInputType.datetime,
-                    validator: (value) {
-                      if (value!.isEmpty) return '생년월일을 입력해주세요.';
-                      if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
-                        return '유효한 날짜 형식(YYYY-MM-DD)을 입력해주세요.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  _buildTextFormField(
-                    controller: _phoneController,
-                    labelText: '전화번호',
-                    icon: Icons.phone_outlined,
-                    keyboardType: TextInputType.phone,
-                    validator: (value) => value!.isEmpty ? '전화번호를 입력해주세요.' : null,
-                  ),
-                  const SizedBox(height: 40),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -280,85 +396,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildTextFormField({
-    required TextEditingController controller,
-    required String labelText,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    bool obscureText = false,
-    String? Function(String?)? validator,
-    Function(String)? onEditingComplete,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      style: const TextStyle(color: Colors.black87),
-      decoration: InputDecoration(
-        labelText: labelText,
-        prefixIcon: Icon(icon, color: Colors.grey[600]),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-        ),
-        errorStyle: const TextStyle(color: Colors.redAccent),
-      ),
-      validator: validator,
-      onEditingComplete: onEditingComplete != null ? () => onEditingComplete(controller.text) : null,
-    );
-  }
-
-  Widget _buildGenderSelection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 12.0, bottom: 8.0),
-          child: Text(
-            '성별',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 16,
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: DropdownButtonFormField<String>(
-            value: _selectedGender,
-            decoration: const InputDecoration(
-              border: InputBorder.none, // DropdownButtonFormField 자체의 border 제거
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-            items: const [
-              DropdownMenuItem(value: 'M', child: Text('남성')),
-              DropdownMenuItem(value: 'F', child: Text('여성')),
-              DropdownMenuItem(value: 'O', child: Text('기타')),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _selectedGender = value;
-              });
-            },
-            validator: (value) => value == null ? '성별을 선택해주세요.' : null,
-          ),
-        ),
-      ],
     );
   }
 }

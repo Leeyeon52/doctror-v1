@@ -2,80 +2,88 @@
 
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart'; // isSameDay 함수 사용을 위해 임포트
-import 'package:t0703/features/doctor_portal/model/appointment.dart'; // ⭐ 경로 수정
-// import 'package:t0703/core/api_service.dart'; // API 서비스 임포트 (가정)
+
+// Appointment 모델 (예시, 실제 모델은 별도 파일에 정의되어야 함)
+class Appointment {
+  final String patientName;
+  final String time;
+  final String description;
+  final DateTime date; // 약속 날짜 추가
+
+  Appointment({required this.patientName, required this.time, required this.description, required this.date});
+}
 
 class CalendarViewModel extends ChangeNotifier {
-  final String baseUrl; // ⭐ baseUrl 추가
-  Map<DateTime, List<Appointment>> _appointments = {};
-  bool _isLoading = false;
-  String? _errorMessage;
+  final String baseUrl; // ✅ baseUrl 추가
 
-  CalendarViewModel({required this.baseUrl}); // ⭐ 생성자 추가
+  CalendarViewModel({required this.baseUrl}) { // ✅ 생성자 수정
+    _selectedDay = _focusedDay; // 초기 선택 날짜 설정
+  }
 
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
 
-  // 특정 월의 진료 예약 데이터를 가져오는 메서드
-  Future<void> fetchAppointments(int year, int intmonth) async { // month -> intmonth로 변경 (충돌 방지)
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+  // 예시 데이터 (실제로는 API에서 가져와야 함)
+  final Map<DateTime, List<Appointment>> _events = {
+    DateTime.utc(2025, 7, 10): [
+      Appointment(patientName: '김철수', time: '10:00', description: '정기 검진', date: DateTime.utc(2025, 7, 10)),
+      Appointment(patientName: '이영희', time: '14:30', description: '충치 치료', date: DateTime.utc(2025, 7, 10)),
+    ],
+    DateTime.utc(2025, 7, 15): [
+      Appointment(patientName: '박민수', time: '11:00', description: '스케일링', date: DateTime.utc(2025, 7, 15)),
+    ],
+  };
 
-    try {
-      // ⭐ 실제 API 서비스 호출:
-      // final response = await http.get(Uri.parse('$baseUrl/appointments?year=$year&month=$intmonth'));
-      // List<Appointment> fetchedAppointments = (json.decode(response.body) as List).map((data) => Appointment.fromJson(data)).toList();
+  // Getters
+  CalendarFormat get calendarFormat => _calendarFormat;
+  DateTime get focusedDay => _focusedDay;
+  DateTime? get selectedDay => _selectedDay;
 
-      // 가상 데이터 로드 (매월 다른 데이터 시뮬레이션)
-      await Future.delayed(const Duration(seconds: 1));
-      List<Appointment> fetchedAppointments = [];
-      if (intmonth == 7 && year == 2025) { // 2025년 7월 데이터
-        fetchedAppointments = [
-          Appointment(id: 'app_001', patientName: '김민준', dateTime: DateTime.utc(2025, 7, 8, 10, 0), type: '비대면 진료', requestId: 'req_001'),
-          Appointment(id: 'app_002', patientName: '이지은', dateTime: DateTime.utc(2025, 7, 8, 11, 30), type: '비대면 진료', requestId: 'req_002'),
-          Appointment(id: 'app_003', patientName: '박찬호', dateTime: DateTime.utc(2025, 7, 10, 14, 0), type: '오프라인 진료'),
-          Appointment(id: 'app_004', patientName: '최현우', dateTime: DateTime.utc(2025, 7, 15, 9, 0), type: '비대면 진료', requestId: 'req_003'),
-          Appointment(id: 'app_005', patientName: '한지민', dateTime: DateTime.utc(2025, 7, 22, 16, 0), type: '오프라인 진료'),
-          Appointment(id: 'app_006', patientName: '강동원', dateTime: DateTime.utc(2025, 7, 22, 17, 0), type: '비대면 진료', requestId: 'req_004'),
-        ];
-      } else if (intmonth == 8 && year == 2025) { // 2025년 8월 데이터
-        fetchedAppointments = [
-          Appointment(id: 'app_007', patientName: '정우성', dateTime: DateTime.utc(2025, 8, 5, 10, 0), type: '비대면 진료', requestId: 'req_005'),
-          Appointment(id: 'app_008', patientName: '고소영', dateTime: DateTime.utc(2025, 8, 5, 11, 0), type: '오프라인 진료'),
-        ];
-      }
-      // ... 다른 월 데이터
+  List<Appointment> get selectedEvents {
+    if (_selectedDay == null) return [];
+    return _events[DateTime.utc(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day)] ?? [];
+  }
 
-      _appointments = _groupAppointmentsByDay(fetchedAppointments);
-    } catch (e) {
-      _errorMessage = e.toString();
-    } finally {
-      _isLoading = false;
+  // Methods
+  List<Appointment> getEventsForDay(DateTime day) {
+    return _events[DateTime.utc(day.year, day.month, day.day)] ?? [];
+  }
+
+  void onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    if (!isSameDay(_selectedDay, selectedDay)) {
+      _selectedDay = selectedDay;
+      _focusedDay = focusedDay; // 선택된 날짜로 포커스 이동
       notifyListeners();
     }
   }
 
-  // Appointment 리스트를 DateTime 키를 가진 맵으로 그룹화
-  Map<DateTime, List<Appointment>> _groupAppointmentsByDay(List<Appointment> appointments) {
-    final Map<DateTime, List<Appointment>> grouped = {};
-    for (var appt in appointments) {
-      // 날짜 부분만 사용하여 그룹화 (시간은 무시)
-      final day = DateTime.utc(appt.dateTime.year, appt.dateTime.month, appt.dateTime.day);
-      if (grouped[day] == null) {
-        grouped[day] = [];
-      }
-      grouped[day]!.add(appt);
+  void onFormatChanged(CalendarFormat format) {
+    if (_calendarFormat != format) {
+      _calendarFormat = format;
+      notifyListeners();
     }
-    // 각 날짜별로 시간 순으로 정렬
-    grouped.forEach((key, value) {
-      value.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-    });
-    return grouped;
   }
 
-  // TableCalendar의 eventLoader에 전달될 함수
-  List<Appointment> getAppointmentsForDay(DateTime day) {
-    return _appointments[DateTime.utc(day.year, day.month, day.day)] ?? [];
+  void onPageChanged(DateTime focusedDay) {
+    _focusedDay = focusedDay;
+    notifyListeners();
+  }
+
+  void deleteAppointment(Appointment appointment) {
+    final day = DateTime.utc(appointment.date.year, appointment.date.month, appointment.date.day);
+    if (_events.containsKey(day)) {
+      _events[day]!.remove(appointment);
+      if (_events[day]!.isEmpty) {
+        _events.remove(day);
+      }
+      notifyListeners();
+    }
+  }
+
+  void addAppointment(Appointment appointment) {
+    final day = DateTime.utc(appointment.date.year, appointment.date.month, appointment.date.day);
+    _events.putIfAbsent(day, () => []).add(appointment);
+    notifyListeners();
   }
 }

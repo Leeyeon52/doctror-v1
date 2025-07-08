@@ -1,22 +1,17 @@
-// C:\Users\sptzk\Desktop\t0703\lib\features\mypage\viewmodel\userinfo_viewmodel.dart
+// lib/features/mypage/viewmodel/userinfo_viewmodel.dart
 
 import 'package:flutter/material.dart';
-import '../../auth/model/user.dart'; // User 모델 임포트
+import 'package:t0703/features/auth/model/user.dart'; // ✅ User 모델 임포트
 
 class UserInfoViewModel extends ChangeNotifier {
-  User? _user; // 현재 로그인된 사용자 정보
+  User? _user;
 
-  User? get user => _user; // 사용자 정보 getter
+  User? get user => _user;
 
-  // 사용자 정보를 로드 (로그인 성공 시 호출)
-  void loadUser(User user) {
+  void loadUser(User user) { // ✅ User 모델을 인자로 받도록 수정
     _user = user;
-    notifyListeners(); // UI 업데이트 알림
+    notifyListeners();
   }
 
-  // 사용자 정보를 지움 (로그아웃 또는 회원 탈퇴 시 호출)
-  void clearUser() { // 함수명 변경: clear -> clearUser
-    _user = null;
-    notifyListeners(); // UI 업데이트 알림
-  }
+  // TODO: 사용자 정보 업데이트, 로그아웃 등 다른 로직 추가
 }
